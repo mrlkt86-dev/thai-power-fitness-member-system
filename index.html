@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827"><title>MyMemberHub 2.0 · Thai Power Fitness</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f3f5f8;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf0;--accent:#d6a84f;--navy:#101827;--green:#16865b;--red:#c44747}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px system-ui,-apple-system,"Noto Sans SC",sans-serif}
+header{background:var(--navy);color:white;padding:18px 16px 16px;position:sticky;top:0;z-index:5}
+.brand{font-size:18px;font-weight:800;letter-spacing:.2px}.sub{color:#bdc6d4;font-size:12px;margin-top:3px}
+main{max-width:980px;margin:auto;padding:16px 14px 90px}.panel,.stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px;margin-bottom:13px;box-shadow:0 3px 14px #17203308}
+h2{font-size:17px;margin:0 0 12px}h3{font-size:14px;margin:0 0 8px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stat small{color:var(--muted)}.num{font-size:25px;font-weight:800;margin-top:5px}
+input,select,button{font:inherit}input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;color:var(--ink);margin:5px 0 10px}
+label{font-size:12px;color:var(--muted);font-weight:650}
+button{border:0;border-radius:10px;padding:11px 14px;background:var(--navy);color:white;font-weight:700;cursor:pointer}
+button.secondary{background:#edf0f4;color:var(--ink)}button.gold{background:var(--accent);color:#1b1b1b}button.danger{background:#faeaea;color:var(--red)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.hidden{display:none!important}.muted{color:var(--muted);font-size:12px}
+.member{padding:12px 0;border-bottom:1px solid var(--line)}.member:last-child{border:0}.membertop{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.pill{font-size:11px;padding:4px 8px;border-radius:20px;background:#e8f5ef;color:var(--green);white-space:nowrap}.pill.warn{background:#fff3dc;color:#956300}.pill.off{background:#fbe9e9;color:var(--red)}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:center;gap:5px;padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom));z-index:6}
+nav button{background:transparent;color:var(--muted);padding:9px 10px;font-size:12px;flex:1;max-width:160px}nav button.active{background:#f5ead3;color:#4d3710}
+#toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);background:#172033;color:white;padding:10px 14px;border-radius:10px;display:none;z-index:10}
+@media(min-width:700px){.stats{grid-template-columns:repeat(4,1fr)}.grid{grid-template-columns:repeat(2,1fr)}}
+</style></head>
+<body>
+<header><div class="brand">THAI POWER FITNESS</div><div class="sub">MyMemberHub 2.0 · 会员管理系统</div></header>
+<main>
+<section id="login" class="panel">
+<h2>登录管理系统</h2><p class="muted">请使用老板或员工账号登录。账号由系统管理员建立。</p>
+<label>电子邮件</label><input id="email" type="email" autocomplete="username" placeholder="name@example.com">
+<label>密码</label><input id="password" type="password" autocomplete="current-password" placeholder="密码">
+<div class="actions"><button id="loginBtn">登录</button></div>
+<p id="configHint" class="muted">首次使用前，请先在 index.html 填入 Supabase 项目网址与 anon key。</p>
+</section>
+<section id="app" class="hidden">
+<div class="panel"><div class="membertop"><div><b id="welcome">欢迎</b><div class="muted" id="roleText"></div></div><button class="secondary" id="logoutBtn">退出</button></div></div>
+<div id="dashboard">
+<div class="stats">
+<div class="stat"><small>会员总数</small><div class="num" id="total">0</div></div>
+<div class="stat"><small>有效会员</small><div class="num" id="active">0</div></div>
+<div class="stat"><small>30天内到期</small><div class="num" id="expiring">0</div></div>
+<div class="stat"><small>已过期</small><div class="num" id="expired">0</div></div>
+</div>
+<div class="panel"><h2>会员名单</h2><input id="search" placeholder="搜索姓名／电话"><div id="memberList"></div></div>
+</div>
+<div id="addView" class="panel hidden">
+<h2>新增会员</h2>
+<label>会员姓名</label><input id="mName" placeholder="姓名">
+<label>电话号码</label><input id="mPhone" placeholder="例如 0123456789">
+<div class="grid"><div><label>会员类别</label><select id="mCategory"><option>成人</option><option>儿童</option><option>私人课程</option></select></div><div><label>配套</label><select id="mPlan"><option value="月费">月费</option><option value="3个月">3个月</option><option value="6个月">6个月</option><option value="12堂私人课">12堂私人课</option></select></div></div>
+<div class="grid"><div><label>收费金额 (RM)</label><input id="mFee" type="number" min="0" step=".01" placeholder="150"></div><div><label>总堂数（没有堂数限制可留空）</label><input id="mSessions" type="number" min="0" placeholder="例如 12"></div></div>
+<label>开始日期</label><input id="mStart" type="date">
+<label>备注</label><input id="mNote" placeholder="选填">
+<button class="gold" id="saveMember">保存会员</button>
+</div>
+<div id="detailView" class="panel hidden"><div class="actions"><button class="secondary" id="backBtn">← 返回</button></div><div id="detailContent"></div></div>
+<div id="settingsView" class="panel hidden"><h2>系统说明</h2><p>老板负责新增会员、修改资料及确认付款。员工可查看会员资料和登记签到。所有资料保存在云端数据库。</p><p class="muted">正式上线前，请完成 SQL 初始化、账号建立及权限设置。请勿公开分享管理账号。</p></div>
+</section>
+</main>
+<nav id="nav" class="hidden"><button data-tab="dashboard" class="active">会员总览</button><button data-tab="addView" id="addTab">新增会员</button><button data-tab="settingsView">设置</button></nav>
+<div id="toast"></div>
+<script>
+const SUPABASE_URL = "https://ufdryghdvwfsabgonfta.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_q7vHx1d0j-YJAgHapBfSA_jO_hHC5X";
+let db=null, currentUser=null, currentRole=null, members=[];
+const $=id=>document.getElementById(id);
+function toast(s){$('toast').textContent=s;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2600)}
+function dateStr(d){return new Date(d).toLocaleDateString('en-CA')}
+function expiry(m){if(!m.start_date)return null;let d=new Date(m.start_date+'T12:00:00');let months= m.plan==='3个月'?3:m.plan==='6个月'?6:m.plan==='12个月'?12:m.plan==='月费'?1:0;if(months){d.setMonth(d.getMonth()+months);return dateStr(d)}return null}
+function showTab(tab){['dashboard','addView','detailView','settingsView'].forEach(x=>$(x).classList.toggle('hidden',x!==tab));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab))}
+function canManage(){return currentRole==='owner'}
+async function init(){
+ if(SUPABASE_URL.startsWith('YOUR_')){$('configHint').textContent='系统尚未连接云端。请先依照 README 设置 Supabase。';$('loginBtn').disabled=true;return}
+ db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+ $('loginBtn').onclick=login;$('logoutBtn').onclick=logout;
+ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+ $('addTab').onclick=()=>{if(!canManage())return;showTab('addView')};
+ $('saveMember').onclick=saveMember;$('search').oninput=renderMembers;$('backBtn').onclick=()=>showTab('dashboard');
+ const {data:{session}}=await db.auth.getSession();if(session)await enter(session.user);
+}
+async function login(){const {data,error}=await db.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)return toast(error.message);await enter(data.user)}
+async function logout(){await db.auth.signOut();currentUser=null;$('app').classList.add('hidden');$('nav').classList.add('hidden');$('login').classList.remove('hidden')}
+async function enter(user){
+ currentUser=user;
+ const {data:p,error}=await db.from('profiles').select('role,display_name').eq('id',user.id).single();
+ if(error||!p){toast('账号尚未设置权限，请联系老板');await db.auth.signOut();return}
+ currentRole=p.role;$('login').classList.add('hidden');$('app').classList.remove('hidden');$('nav').classList.remove('hidden');
+ $('welcome').textContent='你好，'+(p.display_name||user.email);$('roleText').textContent=currentRole==='owner'?'老板账号 · 完整管理权限':'员工账号 · 查看及签到权限';
+ $('addTab').classList.toggle('hidden',!canManage());await loadMembers();showTab('dashboard');
+}
+async function loadMembers(){const {data,error}=await db.from('members').select('*').order('created_at',{ascending:false});if(error){toast(error.message);return}members=data||[];renderMembers();renderStats()}
+function renderStats(){const now=dateStr(new Date()),soon=dateStr(new Date(Date.now()+30*86400000));$('total').textContent=members.length;$('active').textContent=members.filter(m=>m.status==='active'&&(!expiry(m)||expiry(m)>=now)).length;$('expiring').textContent=members.filter(m=>m.status==='active'&&expiry(m)>=now&&expiry(m)<=soon).length;$('expired').textContent=members.filter(m=>m.status==='active'&&expiry(m)&&expiry(m)<now).length}
+function renderMembers(){const q=($('search').value||'').toLowerCase();const list=members.filter(m=>(m.name+' '+(m.phone||'')).toLowerCase().includes(q));$('memberList').innerHTML=list.map(m=>{let ex=expiry(m),status=m.status==='inactive'?'停用':(ex&&ex<dateStr(new Date())?'已过期':'有效');let cls=status==='有效'?'':'warn';return `<div class="member"><div class="membertop"><div><b>${esc(m.name)}</b><div class="muted">${esc(m.phone||'—')} · ${esc(m.category)} · ${esc(m.plan)}</div></div><span class="pill ${cls}">${status}</span></div><div class="muted">到期：${ex||'不适用'}　剩余堂数：${m.sessions_remaining??'不限'}</div><div class="actions" style="margin-top:8px"><button class="secondary" onclick="openMember('${m.id}')">查看／签到</button>${canManage()?`<button class="secondary" onclick="recordPayment('${m.id}')">确认收款</button>`:''}</div></div>`}).join('')||'<p class="muted">暂时没有会员资料。</p>'}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function saveMember(){if(!canManage())return;const name=$('mName').value.trim();if(!name)return toast('请填写会员姓名');const payload={name,phone:$('mPhone').value.trim(),category:$('mCategory').value,plan:$('mPlan').value,fee:Number($('mFee').value||0),sessions_total:$('mSessions').value?Number($('mSessions').value):null,sessions_remaining:$('mSessions').value?Number($('mSessions').value):null,start_date:$('mStart').value||dateStr(new Date()),note:$('mNote').value,status:'active'};const {error}=await db.from('members').insert(payload);if(error)return toast(error.message);['mName','mPhone','mFee','mSessions','mNote'].forEach(id=>$(id).value='');toast('会员已新增');await loadMembers();showTab('dashboard')}
+async function openMember(id){const m=members.find(x=>x.id===id);if(!m)return;const {data:logs}=await db.from('checkins').select('*').eq('member_id',id).order('checked_at',{ascending:false}).limit(20);$('detailContent').innerHTML=`<h2>${esc(m.name)}</h2><p>${esc(m.phone||'—')} · ${esc(m.category)}</p><p>配套：${esc(m.plan)}　收费：RM ${Number(m.fee||0).toFixed(2)}</p><p>开始：${m.start_date||'—'}　到期：${expiry(m)||'—'}</p><p>剩余堂数：${m.sessions_remaining??'不限'}</p><p>备注：${esc(m.note||'—')}</p><div class="actions"><button id="checkinBtn" ${m.sessions_remaining===0?'disabled':''}>登记签到</button>${canManage()?`<button class="secondary" id="editStatus">${m.status==='active'?'停用会员':'重新启用'}</button>`:''}</div><h3 style="margin-top:18px">最近签到</h3>${(logs||[]).map(x=>`<div class="muted">${new Date(x.checked_at).toLocaleString()}</div>`).join('')||'<p class="muted">暂无签到记录</p>'}`;$('checkinBtn').onclick=()=>checkin(id);if(canManage())$('editStatus').onclick=()=>toggleStatus(id);showTab('detailView')}
+async function checkin(id){const {error}=await db.from('checkins').insert({member_id:id,staff_id:currentUser.id});if(error)return toast(error.message);toast('签到成功');await loadMembers();await openMember(id)}
+async function recordPayment(id){if(!canManage())return;const m=members.find(x=>x.id===id);const amount=prompt('确认收到金额（RM）',String(m.fee||0));if(amount===null)return;const n=Number(amount);if(!Number.isFinite(n)||n<0)return toast('金额不正确');const {error}=await db.from('payments').insert({member_id:id,amount:n,plan:m.plan,confirmed_by:currentUser.id});if(error)return toast(error.message);toast('收款记录已保存');}
+async function toggleStatus(id){if(!canManage())return;const m=members.find(x=>x.id===id);const {error}=await db.from('members').update({status:m.status==='active'?'inactive':'active'}).eq('id',id);if(error)return toast(error.message);await loadMembers();openMember(id)}
+init();
+</script></body></html>
